@@ -1,5 +1,6 @@
 from app.database.engine import Base
 from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy.orm import relationship
 
 
 class User(Base):
@@ -16,6 +17,9 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_seller = Column(Boolean, default=False)
     is_buyer = Column(Boolean, default=True)
+
+    refresh_token = relationship("RefreshTokenList", back_populates='user')
+    access_token = relationship("AccessTokenBlackList", back_populates='user')
 
 
     def to_dict(self):
