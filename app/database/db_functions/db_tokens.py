@@ -1,5 +1,5 @@
 from app.database.models import User, RefreshTokenList
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.dialects.postgresql import insert
 
 
@@ -13,5 +13,11 @@ async def add_refresh_token_in_db(db, user_id: int, token: str) -> None:
 
 async def delete_refresh_token_in_db(db, id) -> None:
     query = delete(RefreshTokenList).where(RefreshTokenList.owner_id == id)
+    await db.execute(query)
+    await db.commit()
+
+
+async def update_refresh_token_in_db(db, id, refresh_token) -> None:
+    query = update(RefreshTokenList).where(RefreshTokenList.owner_id == id).values(refresh_token=refresh_token)
     await db.execute(query)
     await db.commit()

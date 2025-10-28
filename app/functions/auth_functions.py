@@ -23,7 +23,7 @@ async def create_access_token(user_id: int, username: str, email: str, is_admin:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
-async def create_refresh_token(user_id,username: str) -> str:
+async def create_refresh_token(user_id, username: str) -> str:
     payload = {'id': user_id, 'username': username}
     token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
     return token

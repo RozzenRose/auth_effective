@@ -10,7 +10,7 @@ from app.functions.auth_functions import (create_access_token, get_current_user,
 from datetime import timedelta
 from app.database.db_functions import (add_refresh_token_in_db, delete_refresh_token_in_db,
                                        disactivate_user_in_db, create_user_in_db, get_user,
-                                       update_user_options_in_db)
+                                       update_user_options_in_db, update_refresh_token_in_db)
 from app.redis_inf import Redis
 
 
@@ -67,12 +67,13 @@ async def refresh_tokens(db: Annotated[AsyncSession, Depends(get_db)],
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Invalid refresh token')
     user = await get_user(db, username) # Достаем данные пользователя из БД
-    await delete_refresh_token_in_db(db, id) # Удаляем старый refresh
+    #await delete_refresh_token_in_db(db, id) # Удаляем старый refresh
     access_token = await create_access_token(user.id, user.username, # Генерируем новый access
                                              user.email, user.is_admin,
+                                             user.is_seller, user.is_buyer,
                                              expires_delta=timedelta(minutes=20))
-    new_refresh_token = await create_refresh_token(user.username) # Генерируем новый refresh
-    await add_refresh_token_in_db(db, user.id, new_refresh_token) # Сохраняем новый refresh
+    new_refresh_token = await create_refresh_token(user.id, user.username) # Генерируем новый refresh
+    await update_refresh_token_in_db(db, user.id, new_refresh_token) # Сохраняем новый refresh
     return {'access_token': access_token,
             'refresh_token': new_refresh_token,
             'token_type': 'bearer'}
