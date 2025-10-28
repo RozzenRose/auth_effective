@@ -19,7 +19,7 @@ class User(Base):
     is_buyer = Column(Boolean, default=True)
 
     refresh_token = relationship("RefreshTokenList", back_populates='user')
-
+    products = relationship("Product", back_populates='user')
 
     def to_dict(self):
         return {'id': self.id,
