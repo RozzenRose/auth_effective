@@ -31,6 +31,6 @@ async def update_user_options_in_db(db, user_id: int, user_data: UpdateUser):
 
 
 async def disactivate_user_in_db(db, user_id):
-    query = update(User).where(User.id == user_id).values(is_active=False)
+    query = update(User).where(User.id == user_id).values(is_activate=False)
     await db.execute(query)
     await db.commit()

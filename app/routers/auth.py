@@ -38,7 +38,7 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await get_user(db, form_data.username)
-    if not user or not user.is_active:
+    if not user or not user.is_activate:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='User is not exist')
     if not await pass_verify(user.hashed_password, form_data.password):

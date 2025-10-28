@@ -21,3 +21,9 @@ class UpdateUser(BaseModel):
     target_user_id: int
     is_seller: bool
     is_buyer: bool
+
+
+class CreateProduct(BaseModel):
+    name: str
+    description: str
+    price: int
