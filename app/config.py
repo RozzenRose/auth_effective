@@ -11,14 +11,28 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
 
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_DB: int
+    REDIS_PASSWORD: str
+
     SECRET_KEY: str = 'your_secret_key' # ключ для создания JWT токенов
     ALGORITHM: str # алгоритм для создания JWT токенов
+
 
     @property
     def database_url(self) -> str:
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+
+    @property
+    def redis_url(self) -> str:
+        return (
+            f'redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:'
+            f'{self.REDIS_PORT}/{self.REDIS_DB}'
         )
 
 

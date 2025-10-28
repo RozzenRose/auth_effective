@@ -19,7 +19,6 @@ class User(Base):
     is_buyer = Column(Boolean, default=True)
 
     refresh_token = relationship("RefreshTokenList", back_populates='user')
-    access_token = relationship("AccessTokenBlackList", back_populates='user')
 
 
     def to_dict(self):

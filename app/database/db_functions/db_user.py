@@ -6,7 +6,7 @@ from sqlalchemy import insert, select
 async def create_user_in_db(db, user_data: CreateUser, hashed_password: str) -> None:
     data = insert(User).values(
         firstname=user_data.firstname,
-        fathername=user_data.firstname,
+        fathername=user_data.fathername,
         lastname=user_data.lastname,
         username=user_data.username,
         email=user_data.email,

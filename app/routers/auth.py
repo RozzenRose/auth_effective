@@ -9,6 +9,8 @@ from app.functions.hashing import pass_hasher, pass_verify
 from app.functions.auth_functions import (create_access_token, get_current_user,
                                           create_refresh_token, verify_refresh_token)
 from datetime import timedelta
+from app.database.db_functions import add_refresh_token_in_db, delete_refresh_token_in_db
+from app.redis_inf import Redis
 
 
 router = APIRouter(prefix='/auth', tags=['auth'])
@@ -31,7 +33,7 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
             'transaction': 'User created successfully'}
 
 
-@router.post('/login')
+@router.post('/token')
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await get_user(db, form_data.username)
@@ -44,7 +46,8 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
     token = await create_access_token(user.id, user.username,
                                       user.email, user.is_admin,
                                       expires_delta=timedelta(minutes=20))
-    refresh_token = await create_refresh_token(user.username)
+    refresh_token = await create_refresh_token(user.id, user.username)
+    await add_refresh_token_in_db(db, user.id, refresh_token)
     return {'access_token': token,
             'refresh_token': refresh_token,
             'token_type': 'bearer'}
@@ -53,15 +56,28 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
 @router.post('/refresh')
 async def refresh_tokens(db: Annotated[AsyncSession, Depends(get_db)],
                         refresh_token: str):
-    username = await verify_refresh_token(refresh_token)
+    id, username = await verify_refresh_token(refresh_token)
     if not username:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Invalid refresh token')
     user = await get_user(db, username)
+    await delete_refresh_token_in_db(db, id)
     access_token = await create_access_token(user.id, user.username,
                                              user.email, user.is_admin,
                                              expires_delta=timedelta(minutes=20))
     new_refresh_token = await create_refresh_token(user.username)
+    await add_refresh_token_in_db(db, user.id, new_refresh_token)
     return {'access_token': access_token,
             'refresh_token': new_refresh_token,
             'token_type': 'bearer'}
+
+
+@router.post('/logout')
+async def  user_logout(db: Annotated[AsyncSession, Depends(get_db)],
+                       user: Annotated[dict, Depends(get_current_user)]):
+    redis = await Redis.get_redis()
+    await redis.set(f'{user.get("user_id")}', f'{user.get("token")}', ex=timedelta(minutes=20))
+    await delete_refresh_token_in_db(db, user.get("user_id"))
+    print(await redis.get(f'{user.get("user_id")}'))
+    return {'status_code': status.HTTP_200_OK,
+            'transaction': 'User logged out successfully'}
