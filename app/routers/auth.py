@@ -2,14 +2,15 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from typing import Annotated
 from app.database.db_depends import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import CreateUser
-from app.database.db_functions import create_user_in_db, get_user
+from app.schemas import CreateUser, UpdateUser
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from app.functions.hashing import pass_hasher, pass_verify
 from app.functions.auth_functions import (create_access_token, get_current_user,
                                           create_refresh_token, verify_refresh_token)
 from datetime import timedelta
-from app.database.db_functions import add_refresh_token_in_db, delete_refresh_token_in_db
+from app.database.db_functions import (add_refresh_token_in_db, delete_refresh_token_in_db,
+                                       disactivate_user_in_db, create_user_in_db, get_user,
+                                       update_user_options_in_db)
 from app.redis_inf import Redis
 
 
@@ -37,7 +38,7 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     user = await get_user(db, form_data.username)
-    if not user:
+    if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='User is not exist')
     if not await pass_verify(user.hashed_password, form_data.password):
@@ -45,6 +46,7 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
                             detail='Invalid password')
     token = await create_access_token(user.id, user.username,
                                       user.email, user.is_admin,
+                                      user.is_seller, user.is_buyer,
                                       expires_delta=timedelta(minutes=20))
     refresh_token = await create_refresh_token(user.id, user.username)
     await add_refresh_token_in_db(db, user.id, refresh_token)
@@ -73,7 +75,7 @@ async def refresh_tokens(db: Annotated[AsyncSession, Depends(get_db)],
 
 
 @router.post('/logout')
-async def  user_logout(db: Annotated[AsyncSession, Depends(get_db)],
+async def user_logout(db: Annotated[AsyncSession, Depends(get_db)],
                        user: Annotated[dict, Depends(get_current_user)]):
     redis = await Redis.get_redis()
     await redis.set(f'{user.get("user_id")}', f'{user.get("token")}', ex=timedelta(minutes=20))
@@ -81,3 +83,23 @@ async def  user_logout(db: Annotated[AsyncSession, Depends(get_db)],
     print(await redis.get(f'{user.get("user_id")}'))
     return {'status_code': status.HTTP_200_OK,
             'transaction': 'User logged out successfully'}
+
+
+@router.get('/delete_user')
+async def delete_user(db: Annotated[AsyncSession, Depends(get_db)],
+                      user: Annotated[dict, Depends(get_current_user)]):
+    await disactivate_user_in_db(db, user.get('user_id'))
+    return {'status_code': status.HTTP_200_OK,
+            'transaction': 'User delete successfully'}
+
+
+@router.post('/users_options')
+async def users_options(db: Annotated[AsyncSession, Depends(get_db)],
+                        user: Annotated[dict, Depends(get_current_user)],
+                        new_user_option: UpdateUser):
+    if user.get("is_admin"):
+        await update_user_options_in_db(db, user.get("user_id"), new_user_option)
+        return {'status_code': status.HTTP_200_OK,
+                'transaction': 'User options updated successfully'}
+    return {'status_code': status.HTTP_401_UNAUTHORIZED,
+            'transaction': 'User is not admin'}

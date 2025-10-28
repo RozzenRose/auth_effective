@@ -15,3 +15,9 @@ class CreateUser(BaseModel):
         if name.isalpha():
             return name.capitalize()
         raise ValueError('Only letters in names, please')
+
+
+class UpdateUser(BaseModel):
+    target_user_id: int
+    is_seller: bool
+    is_buyer: bool

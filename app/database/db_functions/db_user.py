@@ -1,6 +1,6 @@
 from app.database.models import User
-from app.schemas import CreateUser
-from sqlalchemy import insert, select
+from app.schemas import CreateUser, UpdateUser
+from sqlalchemy import insert, select, update
 
 
 async def create_user_in_db(db, user_data: CreateUser, hashed_password: str) -> None:
@@ -20,3 +20,17 @@ async def get_user(db, username: str):
     result = await db.execute(query)
     user = result.scalars().first()
     return user
+
+
+async def update_user_options_in_db(db, user_id: int, user_data: UpdateUser):
+    query = update(User).where(User.id == user_id).values(
+        is_seller=user_data.is_seller,
+        is_buyer=user_data.is_buyer)
+    await db.execute(query)
+    await db.commit()
+
+
+async def disactivate_user_in_db(db, user_id):
+    query = update(User).where(User.id == user_id).values(is_active=False)
+    await db.execute(query)
+    await db.commit()

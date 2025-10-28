@@ -9,11 +9,14 @@ from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/token')
 
 
-async def create_access_token(user_id: int, username: str, email: str, is_admin: bool, expires_delta: timedelta):
+async def create_access_token(user_id: int, username: str, email: str, is_admin: bool,
+                              is_seller: bool, is_buyer: bool, expires_delta: timedelta):
     payload = {'user_id': user_id,
                'username': username,
                'email': email,
                'is_admin': is_admin,
+               'is_seller': is_seller,
+               'is_buyer': is_buyer,
                'exp': datetime.now(timezone.utc) + expires_delta}
     payload['exp'] = int(payload['exp'].timestamp())
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)   #Создание токена
@@ -35,6 +38,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     username: str | None = payload.get('username')
     email: str | None = payload.get('email')
     is_admin: bool | None = payload.get('is_admin')
+    is_seller: bool | None = payload.get('is_seller')
+    is_buyer: bool | None = payload.get('is_buyer')
     expire: int | None = payload.get('exp')
 
     current_time = datetime.now(timezone.utc).timestamp()
@@ -43,6 +48,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
             'username': username,
             'email': email,
             'is_admin': is_admin,
+            'is_seller': is_seller,
+            'is_buyer': is_buyer,
             'expire': expire > current_time,
             'token': token}
 
