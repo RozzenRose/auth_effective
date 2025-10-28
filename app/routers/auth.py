@@ -20,7 +20,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/token')
 
 @router.get("/me")
 async def read_users_me(token: Annotated[str, Depends(oauth2_scheme)]):
-    user = await get_current_user(token)
+    '''Возвращает данные о залогиненном юзере'''
+    user = await get_current_user(token) # Запрос в БД
     return {"user_id": user.get('user_id'),
             "username": user.get('username'),
             "email": user.get('email'),}
@@ -28,8 +29,9 @@ async def read_users_me(token: Annotated[str, Depends(oauth2_scheme)]):
 
 @router.post('/create_user', status_code=status.HTTP_201_CREATED)
 async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user: CreateUser):
-    hashed_password = await pass_hasher(create_user.password)
-    await create_user_in_db(db, create_user, hashed_password)
+    '''Создаем пользователей'''
+    hashed_password = await pass_hasher(create_user.password) # Хешируем пароль
+    await create_user_in_db(db, create_user, hashed_password) # Сохраняем данные в БД
     return {'status_code':status.HTTP_201_CREATED,
             'transaction': 'User created successfully'}
 
@@ -37,19 +39,20 @@ async def create_user(db: Annotated[AsyncSession, Depends(get_db)], create_user:
 @router.post('/token')
 async def login(db: Annotated[AsyncSession, Depends(get_db)],
                 form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = await get_user(db, form_data.username)
-    if not user or not user.is_activate:
+    '''Логиним пользователя'''
+    user = await get_user(db, form_data.username) # Достаем его данные из БД
+    if not user or not user.is_activate: # Проверяем, что пользователь существует и активен
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='User is not exist')
-    if not await pass_verify(user.hashed_password, form_data.password):
+    if not await pass_verify(user.hashed_password, form_data.password): # Сверяем хеш паролей
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Invalid password')
-    token = await create_access_token(user.id, user.username,
+    token = await create_access_token(user.id, user.username, # Генерируем токен доступа
                                       user.email, user.is_admin,
                                       user.is_seller, user.is_buyer,
                                       expires_delta=timedelta(minutes=20))
-    refresh_token = await create_refresh_token(user.id, user.username)
-    await add_refresh_token_in_db(db, user.id, refresh_token)
+    refresh_token = await create_refresh_token(user.id, user.username) # Генерируем токен обновления
+    await add_refresh_token_in_db(db, user.id, refresh_token) # Сохраняем токен обновления
     return {'access_token': token,
             'refresh_token': refresh_token,
             'token_type': 'bearer'}
@@ -58,17 +61,18 @@ async def login(db: Annotated[AsyncSession, Depends(get_db)],
 @router.post('/refresh')
 async def refresh_tokens(db: Annotated[AsyncSession, Depends(get_db)],
                         refresh_token: str):
-    id, username = await verify_refresh_token(refresh_token)
+    '''Обновляем токены, если access закончился'''
+    id, username = await verify_refresh_token(refresh_token) # Проверяем refresh
     if not username:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail='Invalid refresh token')
-    user = await get_user(db, username)
-    await delete_refresh_token_in_db(db, id)
-    access_token = await create_access_token(user.id, user.username,
+    user = await get_user(db, username) # Достаем данные пользователя из БД
+    await delete_refresh_token_in_db(db, id) # Удаляем старый refresh
+    access_token = await create_access_token(user.id, user.username, # Генерируем новый access
                                              user.email, user.is_admin,
                                              expires_delta=timedelta(minutes=20))
-    new_refresh_token = await create_refresh_token(user.username)
-    await add_refresh_token_in_db(db, user.id, new_refresh_token)
+    new_refresh_token = await create_refresh_token(user.username) # Генерируем новый refresh
+    await add_refresh_token_in_db(db, user.id, new_refresh_token) # Сохраняем новый refresh
     return {'access_token': access_token,
             'refresh_token': new_refresh_token,
             'token_type': 'bearer'}
@@ -77,10 +81,10 @@ async def refresh_tokens(db: Annotated[AsyncSession, Depends(get_db)],
 @router.post('/logout')
 async def user_logout(db: Annotated[AsyncSession, Depends(get_db)],
                        user: Annotated[dict, Depends(get_current_user)]):
-    redis = await Redis.get_redis()
+    '''Логаут - Redis используем как блкелист для access'''
+    redis = await Redis.get_redis() # Добавляем текущий access в блек лист
     await redis.set(f'{user.get("user_id")}', f'{user.get("token")}', ex=timedelta(minutes=20))
-    await delete_refresh_token_in_db(db, user.get("user_id"))
-    print(await redis.get(f'{user.get("user_id")}'))
+    await delete_refresh_token_in_db(db, user.get("user_id")) # Сносим refresh
     return {'status_code': status.HTTP_200_OK,
             'transaction': 'User logged out successfully'}
 
@@ -88,6 +92,7 @@ async def user_logout(db: Annotated[AsyncSession, Depends(get_db)],
 @router.get('/delete_user')
 async def delete_user(db: Annotated[AsyncSession, Depends(get_db)],
                       user: Annotated[dict, Depends(get_current_user)]):
+    '''Удаляем юзера'''
     await disactivate_user_in_db(db, user.get('user_id'))
     return {'status_code': status.HTTP_200_OK,
             'transaction': 'User delete successfully'}
@@ -97,6 +102,7 @@ async def delete_user(db: Annotated[AsyncSession, Depends(get_db)],
 async def users_options(db: Annotated[AsyncSession, Depends(get_db)],
                         user: Annotated[dict, Depends(get_current_user)],
                         new_user_option: UpdateUser):
+    '''Меняем статус юзера, если мы админ'''
     if user.get("is_admin"):
         await update_user_options_in_db(db, new_user_option)
         return {'status_code': status.HTTP_200_OK,

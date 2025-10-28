@@ -11,6 +11,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/token')
 
 async def create_access_token(user_id: int, username: str, email: str, is_admin: bool,
                               is_seller: bool, is_buyer: bool, expires_delta: timedelta):
+    '''Создаем access'''
     payload = {'user_id': user_id,
                'username': username,
                'email': email,
@@ -19,7 +20,7 @@ async def create_access_token(user_id: int, username: str, email: str, is_admin:
                'is_buyer': is_buyer,
                'exp': datetime.now(timezone.utc) + expires_delta}
     payload['exp'] = int(payload['exp'].timestamp())
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)   #Создание токена
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 async def create_refresh_token(user_id,username: str) -> str:
@@ -29,6 +30,7 @@ async def create_refresh_token(user_id,username: str) -> str:
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+    '''Дешефруем access'''
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm]) #Декодирование токена
     except:
@@ -55,5 +57,6 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
 
 
 async def verify_refresh_token(token: str) -> str | None:
+    '''Дешефруем refresh'''
     payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
     return payload.get('id'), payload.get('username')

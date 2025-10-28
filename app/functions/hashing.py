@@ -6,11 +6,13 @@ ph = PasswordHasher(time_cost=3, memory_cost=256*1024, parallelism=2)  # ~256 Mi
 
 
 async def pass_hasher(password: str) -> str:
+    '''Делаем из пароля его хеш'''
     hash_str = ph.hash(password)          # храните hash_str
     return hash_str
 
 
 async def pass_verify(hash_str: str, password_input: str) -> bool:
+    '''Сверяем хеши паролей'''
     try:
         ph.verify(hash_str, password_input)   # True/исключение
         return True
