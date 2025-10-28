@@ -98,7 +98,7 @@ async def users_options(db: Annotated[AsyncSession, Depends(get_db)],
                         user: Annotated[dict, Depends(get_current_user)],
                         new_user_option: UpdateUser):
     if user.get("is_admin"):
-        await update_user_options_in_db(db, user.get("user_id"), new_user_option)
+        await update_user_options_in_db(db, new_user_option)
         return {'status_code': status.HTTP_200_OK,
                 'transaction': 'User options updated successfully'}
     return {'status_code': status.HTTP_401_UNAUTHORIZED,

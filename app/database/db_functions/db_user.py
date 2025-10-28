@@ -22,8 +22,8 @@ async def get_user(db, username: str):
     return user
 
 
-async def update_user_options_in_db(db, user_id: int, user_data: UpdateUser):
-    query = update(User).where(User.id == user_id).values(
+async def update_user_options_in_db(db, user_data: UpdateUser):
+    query = update(User).where(User.id == user_data.target_user_id).values(
         is_seller=user_data.is_seller,
         is_buyer=user_data.is_buyer)
     await db.execute(query)

@@ -13,3 +13,9 @@ async def create_product_in_db(db, user_id: int, product_data: CreateProduct) ->
     await db.execute(data)
     await db.commit()
 
+
+async def get_all_products_in_db(db) -> list[Product]:
+    data = select(Product)
+    result = await db.execute(data)
+    products = result.scalars().all()
+    return products
